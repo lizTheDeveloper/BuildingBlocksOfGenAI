@@ -62,14 +62,9 @@ python generative_vs_discriminative.py
 
 Some files may require you to fill in missing code as part of exercises. Solutions are provided in separate files where appropriate.
 
-## Prerequisites
+## Setup
 
-- Python 3.8+
-- TensorFlow 2.x
-- NumPy
-- Matplotlib
-- Scikit-learn
-- TensorFlow Probability (for some examples)
+- We'll work in Google Colab
 
 You can install the required packages using pip:
 
