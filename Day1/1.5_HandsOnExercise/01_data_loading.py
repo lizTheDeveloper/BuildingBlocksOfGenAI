@@ -92,84 +92,6 @@ def visualize_dataset_samples(dataset, num_samples=10, class_names=None):
     plt.tight_layout()
     plt.show()
 
-def describe_alternative_datasets():
-    """
-    Print information about alternative datasets that can be used for similar exercises.
-    """
-    print("\n===== Alternative Datasets for Neural Network Exercises =====\n")
-    
-    datasets_info = [
-        {
-            "name": "Fashion-MNIST",
-            "description": "70,000 grayscale images (28x28 pixels) of clothing items across 10 categories.",
-            "ideal_for": "Convolutional Neural Networks (CNNs), classification tasks",
-            "why_great": "More challenging and modern alternative to MNIST."
-        },
-        {
-            "name": "Digits Dataset (Scikit-learn)",
-            "description": "1,797 images of handwritten digits (8x8 pixels) with labels from 0 to 9.",
-            "ideal_for": "Introductory machine learning models, quick prototyping",
-            "why_great": "Small size allows for quick experimentation."
-        },
-        {
-            "name": "California Housing Dataset",
-            "description": "Housing prices in California with features like median income, house age, etc.",
-            "ideal_for": "Linear regression, decision trees, and other regression algorithms",
-            "why_great": "Perfect for regression tasks and predicting continuous values."
-        },
-        {
-            "name": "IMDb Movie Reviews",
-            "description": "50,000 movie reviews labeled as positive or negative.",
-            "ideal_for": "Text classification, sentiment analysis, NLP models",
-            "why_great": "Standard benchmark for sentiment analysis."
-        },
-        {
-            "name": "Sentiment140",
-            "description": "1.6 million tweets labeled for sentiment (positive, negative, neutral).",
-            "ideal_for": "NLP, sentiment analysis, handling noisy text data",
-            "why_great": "Real-world data for practicing sentiment analysis on social media text."
-        },
-        {
-            "name": "Breast Cancer Wisconsin Diagnostic Dataset",
-            "description": "569 instances with 30 attributes related to cell nuclei, labeled as malignant or benign.",
-            "ideal_for": "Classification algorithms, medical diagnosis models",
-            "why_great": "Classic dataset for binary classification tasks in the medical domain."
-        },
-        {
-            "name": "Mall Customers Dataset",
-            "description": "Data on customers' annual income, spending score, and age.",
-            "ideal_for": "K-means clustering, customer segmentation analysis",
-            "why_great": "Useful for clustering and customer segmentation exercises."
-        },
-        {
-            "name": "Oxford-IIIT Pet Dataset",
-            "description": "7,349 images of 37 pet breeds, with annotations for breed, head pose, and bounding boxes.",
-            "ideal_for": "CNNs, transfer learning, object detection tasks",
-            "why_great": "Excellent for practicing image classification and object detection."
-        },
-        {
-            "name": "CIFAR-10",
-            "description": "60,000 32x32 color images across 10 classes, including airplanes, cars, and birds.",
-            "ideal_for": "CNNs, image classification, deep learning models",
-            "why_great": "A step up from MNIST, offering more complex images for classification tasks."
-        },
-        {
-            "name": "UrbanSound8K",
-            "description": "8,732 labeled sound excerpts from 10 urban sound classes (sirens, dog barks, etc.).",
-            "ideal_for": "Audio classification, feature extraction, spectrogram analysis",
-            "why_great": "Introduces learners to audio data processing and classification."
-        }
-    ]
-    
-    for i, dataset in enumerate(datasets_info, 1):
-        print(f"{i}. {dataset['name']}")
-        print(f"   Description: {dataset['description']}")
-        print(f"   Ideal for: {dataset['ideal_for']}")
-        print(f"   Why it's great: {dataset['why_great']}")
-        print()
-    
-    print("Each dataset offers unique learning opportunities and can be used for similar neural network exercises.")
-    print("The choice of dataset depends on the specific concepts you want to explore and the type of data you're interested in working with.")
 
 if __name__ == "__main__":
     # Example usage
@@ -193,5 +115,3 @@ if __name__ == "__main__":
         plt.yticks([])
     plt.show()
     
-    # Print info about alternative datasets
-    describe_alternative_datasets()
