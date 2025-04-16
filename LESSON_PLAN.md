@@ -11,6 +11,7 @@ Day 1 (6:00 a.m. – 1:00 p.m.)
 	•	Introduction to generative AI & its applications.
 	•	Basics of generative models, why they matter.
 	•	High-level look at different generative model families (GANs, VAEs, autoregressive).
+    •	Visualizations: https://colab.research.google.com/drive/1ydT2fOhM83n3OdFQwkNrxg_t75dPyTVZ#scrollTo=iAKTtqZvpr4n
 
 6:45 – 7:00
 	•	Short Break (avoid too much talking first thing in the morning)
@@ -24,17 +25,17 @@ Day 1 (6:00 a.m. – 1:00 p.m.)
 8:00 – 8:15
 	•	Short Break
 
-8:15 – 9:30
+8:15 – 9:00
 	•	Building Blocks of Generative Models
 	•	Probability distributions & sampling techniques.
 	•	Latent space & representation learning.
 	•	Hands-On Exercise: Implement a simple generative model in Python/TensorFlow (or PyTorch).
 	•	Provide partial scaffolding so participants must fill in relevant sections.
 
-9:30 – 9:45
-	•	Short Break
+9:00 – 10:00
+	•	Lunch / Breakfast
 
-9:45 – 11:30
+10:00 – 11:30
 	•	Variational Autoencoders (VAEs)
 	•	VAE architecture & how it differs from standard autoencoders.
 	•	Training VAEs & generating new samples.

@@ -39,14 +39,22 @@
 - **Benefit**: Allows backpropagation through the sampling process
 
 ```python
-def reparameterize(mu, logvar):
+def reparameterize(learned_mean, learned_log_variance):
     """
-    Sample from the latent distribution using the reparameterization trick
+    Draw a sample from the learned distribution in a way that allows gradients to flow through.
+    This uses the reparameterization trick: randomness is pulled out and applied in a differentiable way.
     """
-    std = torch.exp(0.5 * logvar)  # Convert logvar to std
-    eps = torch.randn_like(std)    # Random noise from N(0,1)
-    z = mu + eps * std             # Reparameterized sample
-    return z
+
+    # Convert the learned log-variance to a standard deviation
+    standard_deviation = torch.exp(0.5 * learned_log_variance)
+
+    # Draw random noise from a standard normal distribution (mean = 0, std = 1)
+    random_noise = torch.randn_like(standard_deviation)
+
+    # Create the final sample by shifting and scaling the noise
+    sample = learned_mean + random_noise * standard_deviation
+
+    return sample
 ```
 
 ## VAE Loss Function

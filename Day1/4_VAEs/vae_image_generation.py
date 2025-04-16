@@ -22,15 +22,25 @@ LATENT_DIM = 2  # Dimensionality of the latent space
 BATCH_SIZE = 128
 EPOCHS = 20
 
-class VAEModelMNIST:
+class VAEModelMNIST(keras.Model):
     def __init__(self, latent_dim=LATENT_DIM):
+        super(VAEModelMNIST, self).__init__()
         self.latent_dim = latent_dim
         self.encoder = None
         self.decoder = None
-        self.vae = None
         self.build_encoder()
         self.build_decoder()
-        self.build_vae()
+        self.total_loss_tracker = keras.metrics.Mean(name="total_loss")
+        self.reconstruction_loss_tracker = keras.metrics.Mean(name="reconstruction_loss")
+        self.kl_loss_tracker = keras.metrics.Mean(name="kl_loss")
+
+    @property
+    def metrics(self):
+        return [
+            self.total_loss_tracker,
+            self.reconstruction_loss_tracker,
+            self.kl_loss_tracker,
+        ]
     
     def build_encoder(self):
         # Define encoder inputs
@@ -51,7 +61,7 @@ class VAEModelMNIST:
             z_mean, z_log_var = args
             batch = tf.shape(z_mean)[0]
             dim = tf.shape(z_mean)[1]
-            epsilon = tf.keras.backend.random_normal(shape=(batch, dim))
+            epsilon = tf.random.normal(shape=(batch, dim))
             return z_mean + tf.exp(0.5 * z_log_var) * epsilon
         
         # Sampling layer
@@ -79,46 +89,105 @@ class VAEModelMNIST:
         # Create decoder model
         self.decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
         self.decoder.summary()
-    
-    def build_vae(self):
-        # Define VAE inputs
-        inputs = keras.Input(shape=(28, 28, 1))
-        
+
+    def call(self, inputs):
         # Get outputs from encoder
         z_mean, z_log_var, z = self.encoder(inputs)
         
         # Get reconstruction from decoder
         reconstruction = self.decoder(z)
+        return reconstruction
+
+    def train_step(self, data):
+        if isinstance(data, tuple):
+            data = data[0]
         
-        # VAE Custom Loss Function
-        def vae_loss(inputs, reconstruction):
-            # Reconstruction loss
-            reconstruction_loss = keras.losses.binary_crossentropy(
-                K.flatten(inputs), K.flatten(reconstruction)
+        with tf.GradientTape() as tape:
+            # Forward pass
+            z_mean, z_log_var, z = self.encoder(data)
+            reconstruction = self.decoder(z)
+            
+            # Calculate losses
+            # Flatten both input and reconstruction
+            x_flat = tf.reshape(data, [-1, 784])  # 28*28 = 784
+            reconstruction_flat = tf.reshape(reconstruction, [-1, 784])
+            
+            # Reconstruction loss (pixel-wise binary crossentropy)
+            reconstruction_loss = tf.reduce_mean(
+                keras.losses.binary_crossentropy(x_flat, reconstruction_flat)
             )
-            reconstruction_loss *= 28 * 28  # Scale by image dimensions
+            reconstruction_loss *= 784  # Scale by image dimensions
             
             # KL divergence loss
-            kl_loss = -0.5 * K.sum(
-                1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1
+            kl_loss = -0.5 * tf.reduce_mean(
+                1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var)
             )
             
-            # Total loss
-            return K.mean(reconstruction_loss + kl_loss)
+            total_loss = reconstruction_loss + kl_loss
         
-        # Create VAE model
-        self.vae = keras.Model(inputs, reconstruction, name="vae")
-        self.vae.add_loss(vae_loss(inputs, reconstruction))
-        self.vae.compile(optimizer=keras.optimizers.Adam())
-    
+        # Calculate gradients and update weights
+        grads = tape.gradient(total_loss, self.trainable_weights)
+        self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
+        
+        # Update metrics
+        self.total_loss_tracker.update_state(total_loss)
+        self.reconstruction_loss_tracker.update_state(reconstruction_loss)
+        self.kl_loss_tracker.update_state(kl_loss)
+        
+        return {
+            "loss": total_loss,
+            "reconstruction_loss": reconstruction_loss,
+            "kl_loss": kl_loss,
+        }
+
+    def test_step(self, data):
+        if isinstance(data, tuple):
+            data = data[0]
+            
+        # Forward pass
+        z_mean, z_log_var, z = self.encoder(data)
+        reconstruction = self.decoder(z)
+        
+        # Calculate losses
+        # Flatten both input and reconstruction
+        x_flat = tf.reshape(data, [-1, 784])  # 28*28 = 784
+        reconstruction_flat = tf.reshape(reconstruction, [-1, 784])
+        
+        # Reconstruction loss (pixel-wise binary crossentropy)
+        reconstruction_loss = tf.reduce_mean(
+            keras.losses.binary_crossentropy(x_flat, reconstruction_flat)
+        )
+        reconstruction_loss *= 784  # Scale by image dimensions
+        
+        # KL divergence loss
+        kl_loss = -0.5 * tf.reduce_mean(
+            1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var)
+        )
+        
+        total_loss = reconstruction_loss + kl_loss
+        
+        # Update metrics
+        self.total_loss_tracker.update_state(total_loss)
+        self.reconstruction_loss_tracker.update_state(reconstruction_loss)
+        self.kl_loss_tracker.update_state(kl_loss)
+        
+        return {
+            "loss": total_loss,
+            "reconstruction_loss": reconstruction_loss,
+            "kl_loss": kl_loss,
+        }
+
     def train(self, x_train, epochs=EPOCHS, batch_size=BATCH_SIZE):
         # Reshape data to include channel dimension and normalize
         x_train = np.expand_dims(x_train, -1).astype("float32") / 255
         
+        # Compile the model with a dummy loss since real loss is handled in train_step
+        self.compile(optimizer=keras.optimizers.Adam())
+        
         # Train the model
-        history = self.vae.fit(
+        history = self.fit(
             x_train,
-            x_train,  # input is the same as target for autoencoders
+            x_train,  # Provide same data as input and target
             epochs=epochs,
             batch_size=batch_size,
             validation_split=0.2,
@@ -166,7 +235,7 @@ def plot_reconstructions(vae_model, data, n=10):
     sample_images = np.expand_dims(sample_images, -1).astype("float32") / 255
     
     # Predict reconstructions
-    reconstructions = vae_model.vae.predict(sample_images)
+    reconstructions = vae_model(sample_images, training=False)
     
     # Plot original vs reconstruction
     plt.figure(figsize=(20, 4))
@@ -180,7 +249,7 @@ def plot_reconstructions(vae_model, data, n=10):
         
         # Reconstructed image
         ax = plt.subplot(2, n, i + 1 + n)
-        plt.imshow(reconstructions[i].reshape(28, 28), cmap="Greys_r")
+        plt.imshow(reconstructions[i].numpy().reshape(28, 28), cmap="Greys_r")
         plt.title("Reconstructed")
         plt.axis("off")
     
