@@ -1,9 +1,10 @@
 """
-GAN MNIST Solution
+GAN MNIST Exercise
 Building Blocks of Generative AI Course - Day 2
 
-Complete solution for the GAN MNIST exercise. This implements a full GAN to
-generate MNIST digits, with proper generator and discriminator networks and training loop.
+This exercise helps students implement and train a GAN to generate MNIST digits.
+Students will fill in the missing parts of the generator and discriminator networks,
+along with the training loop.
 """
 
 import numpy as np
@@ -40,32 +41,21 @@ class MNISTGAN:
         Returns:
             The generator model
         """
+        # TODO: Implement the generator network
+        
         # Input is a random noise vector from the latent space
         noise = keras.Input(shape=(self.latent_dim,))
         
-        # First dense layer to get enough units for reshaping
-        x = layers.Dense(7 * 7 * 128)(noise)
-        x = layers.LeakyReLU(alpha=0.2)(x)
-        x = layers.BatchNormalization()(x)
+        # TODO: Add dense layers to transform the noise
+        # Hint: You'll need to reshape to prepare for convolutional layers
         
-        # Reshape for convolutional layers
-        x = layers.Reshape((7, 7, 128))(x)
+        # TODO: Add upsampling layers (Conv2DTranspose) to generate the image
+        # Hint: The final output should have the same shape as MNIST images: (28, 28, 1)
         
-        # Upsampling with Conv2DTranspose layers
-        x = layers.Conv2DTranspose(128, kernel_size=4, strides=1, padding='same')(x)
-        x = layers.LeakyReLU(alpha=0.2)(x)
-        x = layers.BatchNormalization()(x)
+        # TODO: Add the final layer with tanh activation for pixel values in [-1, 1]
+        # Remember to scale the output appropriately
         
-        x = layers.Conv2DTranspose(64, kernel_size=4, strides=2, padding='same')(x)
-        x = layers.LeakyReLU(alpha=0.2)(x)
-        x = layers.BatchNormalization()(x)
-        
-        # Final layer with tanh activation for pixel values in [-1, 1]
-        x = layers.Conv2DTranspose(1, kernel_size=4, strides=2, padding='same', activation='tanh')(x)
-        
-        # Create the generator model
-        self.generator = keras.Model(noise, x, name='generator')
-        print(self.generator.summary())
+        # TODO: Create the generator model
         
         return self.generator
     
@@ -78,37 +68,22 @@ class MNISTGAN:
         Returns:
             The discriminator model
         """
+        # TODO: Implement the discriminator network
+        
         # Input is an image
         image = keras.Input(shape=self.image_shape)
         
-        # Convolutional layers with downsampling
-        x = layers.Conv2D(64, kernel_size=4, strides=2, padding='same')(image)
-        x = layers.LeakyReLU(alpha=0.2)(x)
-        x = layers.Dropout(0.3)(x)
+        # TODO: Add convolutional layers with downsampling
+        # Hint: Use Conv2D with strides=2 for downsampling
         
-        x = layers.Conv2D(128, kernel_size=4, strides=2, padding='same')(x)
-        x = layers.LeakyReLU(alpha=0.2)(x)
-        x = layers.Dropout(0.3)(x)
+        # TODO: Flatten the features
         
-        # Flatten the features
-        x = layers.Flatten()(x)
+        # TODO: Add dense layers
         
-        # Dense layers
-        x = layers.Dense(128)(x)
-        x = layers.LeakyReLU(alpha=0.2)(x)
-        x = layers.Dropout(0.3)(x)
+        # TODO: Add the final layer with sigmoid activation for binary classification (real/fake)
         
-        # Final layer with sigmoid activation for binary classification
-        x = layers.Dense(1, activation='sigmoid')(x)
-        
-        # Create and compile the discriminator model
-        self.discriminator = keras.Model(image, x, name='discriminator')
-        self.discriminator.compile(
-            loss='binary_crossentropy',
-            optimizer=keras.optimizers.Adam(learning_rate=0.0002, beta_1=0.5),
-            metrics=['accuracy']
-        )
-        print(self.discriminator.summary())
+        # TODO: Create and compile the discriminator model
+        # Use binary crossentropy loss and an appropriate optimizer
         
         return self.discriminator
     
@@ -125,25 +100,20 @@ class MNISTGAN:
         if self.discriminator is None:
             self.build_discriminator()
         
+        # TODO: Implement the GAN model
+        
         # For training the generator, we freeze the discriminator's weights
         self.discriminator.trainable = False
         
         # GAN input (noise) will produce generated images
         gan_input = keras.Input(shape=(self.latent_dim,))
         
-        # Connect the generator and discriminator
+        # TODO: Connect the generator and discriminator
         # 1. Generate images from noise
-        generated_images = self.generator(gan_input)
         # 2. Feed the generated images to the discriminator
-        gan_output = self.discriminator(generated_images)
         
-        # Create and compile the GAN model
-        self.gan = keras.Model(gan_input, gan_output, name='gan')
-        self.gan.compile(
-            loss='binary_crossentropy',
-            optimizer=keras.optimizers.Adam(learning_rate=0.0002, beta_1=0.5)
-        )
-        print(self.gan.summary())
+        # TODO: Create and compile the GAN model
+        # Use binary crossentropy loss and an appropriate optimizer
         
         return self.gan
     
@@ -157,7 +127,9 @@ class MNISTGAN:
         Returns:
             Preprocessed images
         """
-        # Scale images to [-1, 1]
+        # TODO: Implement preprocessing
+        # 1. Scale images to [-1, 1]
+        # 2. Ensure correct shape for the discriminator
         images = images.astype(np.float32)
         images = images / 127.5 - 1  # Scale to [-1, 1]
         images = np.expand_dims(images, axis=-1)
@@ -176,15 +148,8 @@ class MNISTGAN:
         Returns:
             Training history (discriminator and generator losses)
         """
-        # Ensure GAN model is built
-        if self.gan is None:
-            self.build_gan()
-        
         # Preprocess the data
         x_train = self.preprocess_data(x_train)
-        
-        # Calculate the number of batches per epoch
-        batch_count = x_train.shape[0] // batch_size
         
         # Create arrays to store loss history
         d_loss_history = []
@@ -194,57 +159,16 @@ class MNISTGAN:
         for epoch in range(epochs):
             start_time = time.time()
             
-            # Training loop for each batch
-            for batch_idx in range(batch_count):
-                # -----------------------
-                # Train the discriminator
-                # -----------------------
-                
-                # Select a random batch of real images
-                idx = np.random.randint(0, x_train.shape[0], batch_size)
-                real_images = x_train[idx]
-                
-                # Generate a batch of fake images
-                noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
-                fake_images = self.generator.predict(noise, verbose=0)
-                
-                # Get labels for real and fake images
-                real_labels = np.ones((batch_size, 1)) * 0.9  # Smoothed labels for stability
-                fake_labels = np.zeros((batch_size, 1))
-                
-                # Train on real images
-                d_loss_real = self.discriminator.train_on_batch(real_images, real_labels)
-                
-                # Train on fake images
-                d_loss_fake = self.discriminator.train_on_batch(fake_images, fake_labels)
-                
-                # Average discriminator loss
-                d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
-                d_loss_history.append(d_loss[0])
-                
-                # -----------------------
-                # Train the generator
-                # -----------------------
-                
-                # Generate new noise for the generator
-                noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
-                
-                # Generator wants the discriminator to label fake images as real
-                valid_labels = np.ones((batch_size, 1))
-                
-                # Train the generator
-                g_loss = self.gan.train_on_batch(noise, valid_labels)
-                g_loss_history.append(g_loss)
-                
-                # Print progress
-                if batch_idx % 50 == 0:
-                    print(f"Epoch {epoch+1}/{epochs}, Batch {batch_idx}/{batch_count}")
-                    print(f"D Loss: {d_loss[0]:.4f}, Acc: {100*d_loss[1]:.2f}%, G Loss: {g_loss:.4f}")
+            # -------------------------
+            # TODO: Implement the training loop
+            # 1. Train the discriminator with real and fake images (half real, half fake)
+            # 2. Train the generator to fool the discriminator
+            # 3. Record losses for plotting
+            # -------------------------
             
-            # Print epoch results
-            elapsed_time = time.time() - start_time
-            print(f"Epoch {epoch+1}/{epochs}, Time: {elapsed_time:.2f}s")
-            print(f"D Loss: {np.mean(d_loss_history[-batch_count:]):.4f}, G Loss: {np.mean(g_loss_history[-batch_count:]):.4f}")
+            # Print progress
+            print(f"Epoch {epoch+1}/{epochs}, Time: {time.time()-start_time:.2f}s")
+            print(f"D Loss: {np.mean(d_loss_history[-batch_size:]):.4f}, G Loss: {np.mean(g_loss_history[-batch_size:]):.4f}")
             
             # Save sample images at specified intervals
             if (epoch + 1) % save_interval == 0 or epoch == 0:
