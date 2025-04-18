@@ -4,6 +4,9 @@ Building Blocks of Generative AI Course - Day 2
 
 This script visualizes different types of attention mechanisms used in neural networks,
 including Bahdanau attention and scaled dot-product attention.
+
+It also provides a validation function for students to verify their implementation
+of the scaled dot-product attention mechanism.
 """
 
 import numpy as np
@@ -11,9 +14,288 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.animation import FuncAnimation
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
 
 # Set random seed for reproducibility
 np.random.seed(42)
+
+# Reference implementation of scaled dot-product attention for validation
+class ReferenceScaledDotProductAttention(layers.Layer):
+    """
+    Reference implementation of Scaled Dot-Product Attention for validation.
+    """
+    def __init__(self):
+        super(ReferenceScaledDotProductAttention, self).__init__()
+    
+    def call(self, query, key, value, mask=None):
+        """
+        Apply scaled dot-product attention mechanism.
+        
+        Args:
+            query: Query tensor (batch_size, seq_len_q, depth)
+            key: Key tensor (batch_size, seq_len_k, depth)
+            value: Value tensor (batch_size, seq_len_v, depth_v), where seq_len_v = seq_len_k
+            mask: Optional mask tensor of shape (batch_size, seq_len_q, seq_len_k)
+            
+        Returns:
+            output: Attention output of shape (batch_size, seq_len_q, depth_v)
+            attention_weights: Attention weights of shape (batch_size, seq_len_q, seq_len_k)
+        """
+        # Calculate dot product of query and key
+        matmul_qk = tf.matmul(query, key, transpose_b=True)
+        
+        # Scale matmul_qk by square root of depth (dimension of key vectors)
+        depth = tf.cast(tf.shape(key)[-1], tf.float32)
+        scaled_attention_logits = matmul_qk / tf.math.sqrt(depth)
+        
+        # Apply mask if provided
+        if mask is not None:
+            scaled_attention_logits += (mask * -1e9)  
+        
+        # Apply softmax to get attention weights
+        attention_weights = tf.nn.softmax(scaled_attention_logits, axis=-1)
+        
+        # Compute weighted sum of values
+        output = tf.matmul(attention_weights, value)
+        
+        return output, attention_weights
+
+def validate_attention_implementation(student_attention_class):
+    """
+    Validate a student's implementation of the scaled dot-product attention.
+    
+    Args:
+        student_attention_class: The student's attention class to validate
+        
+    Returns:
+        is_valid: Boolean indicating if the implementation is correct
+        max_diff: Maximum absolute difference between reference and student outputs
+    """
+    print("Validating your attention implementation...")
+    
+    # Create test data
+    batch_size = 2
+    seq_len_q = 4
+    seq_len_k = 6
+    depth = 8
+    
+    # Create random test inputs
+    query = tf.random.normal((batch_size, seq_len_q, depth))
+    key = tf.random.normal((batch_size, seq_len_k, depth))
+    value = tf.random.normal((batch_size, seq_len_k, depth))
+    
+    # Optional mask for testing masking functionality
+    mask = tf.convert_to_tensor(
+        [[0., 0., 1., 1., 0., 0.],
+         [0., 1., 0., 0., 1., 0.],
+         [1., 0., 0., 0., 0., 1.],
+         [0., 0., 0., 1., 1., 0.]], dtype=tf.float32
+    )
+    mask = tf.reshape(mask, [1, seq_len_q, seq_len_k])
+    mask = tf.tile(mask, [batch_size, 1, 1])
+    
+    # Initialize the models
+    reference_model = ReferenceScaledDotProductAttention()
+    try:
+        student_model = student_attention_class()
+    except Exception as e:
+        print(f"Error initializing student model: {e}")
+        return False, None
+    
+    # Run the reference model
+    try:
+        reference_output, reference_weights = reference_model(query, key, value, mask)
+    except Exception as e:
+        print(f"Error running reference model: {e}")
+        return False, None
+    
+    # Run the student model
+    try:
+        student_output, student_weights = student_model(query, key, value, mask)
+    except Exception as e:
+        print(f"Error running student model: {e}")
+        print("Make sure your implementation follows the correct signature:")
+        print("def call(self, query, key, value, mask=None):")
+        return False, None
+    
+    # Compare outputs
+    try:
+        output_diff = tf.abs(reference_output - student_output)
+        weights_diff = tf.abs(reference_weights - student_weights)
+        
+        max_output_diff = tf.reduce_max(output_diff).numpy()
+        max_weights_diff = tf.reduce_max(weights_diff).numpy()
+        
+        max_diff = max(max_output_diff, max_weights_diff)
+        
+        # Define tolerance for floating-point differences
+        tolerance = 1e-5
+        
+        is_valid = max_diff <= tolerance
+        
+        if is_valid:
+            print("✅ Your implementation is correct!")
+            print(f"   Maximum difference: {max_diff:.8f}")
+        else:
+            print("❌ Your implementation has some issues.")
+            print(f"   Maximum difference in outputs: {max_output_diff:.8f}")
+            print(f"   Maximum difference in weights: {max_weights_diff:.8f}")
+            print("   Expected tolerance: ", tolerance)
+            
+            # Additional debugging help
+            if max_weights_diff > tolerance:
+                print("\nAttention weights comparison (first batch, first query):")
+                print("Reference:", reference_weights[0, 0].numpy())
+                print("Student:", student_weights[0, 0].numpy())
+                print("\nCheck your softmax implementation and scaling factor.")
+            
+            if max_output_diff > tolerance:
+                print("\nOutput comparison (first batch, first query):")
+                print("Reference:", reference_output[0, 0, :3].numpy(), "...")
+                print("Student:", student_output[0, 0, :3].numpy(), "...")
+                print("\nCheck your matrix multiplication of weights and values.")
+        
+        return is_valid, max_diff
+    
+    except Exception as e:
+        print(f"Error comparing outputs: {e}")
+        return False, None
+
+def visualize_attention_validation(student_attention_class):
+    """
+    Visualize and validate a student's attention implementation.
+    
+    Args:
+        student_attention_class: The student's attention class
+        
+    Returns:
+        is_valid: Boolean indicating if the implementation is correct
+    """
+    # Validate the implementation
+    is_valid, max_diff = validate_attention_implementation(student_attention_class)
+    
+    if not is_valid or max_diff is None:
+        print("Cannot generate visualization due to implementation issues.")
+        return False
+    
+    # Create test data for visualization
+    batch_size = 1
+    seq_len_q = 3
+    seq_len_k = 4
+    depth = 2
+    
+    # Create simple test inputs for clear visualization
+    query = tf.constant([[[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]], dtype=tf.float32)  # batch_size, seq_len_q, depth
+    key = tf.constant([[[1.0, 0.0], [0.0, 1.0], [1.0, 1.0], [0.5, 0.5]]], dtype=tf.float32)  # batch_size, seq_len_k, depth
+    value = tf.constant([[[0.2, 0.3, 0.5], [0.1, 0.4, 0.5], [0.9, 0.2, 0.3], [0.4, 0.4, 0.2]]], dtype=tf.float32)  # batch_size, seq_len_k, depth_v
+    
+    # Run the student model
+    try:
+        student_output, student_weights = student_attention_class()(query, key, value)
+    except Exception as e:
+        print(f"Error running student model for visualization: {e}")
+        return False
+    
+    # Now create a visualization to help understand the attention mechanism
+    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+    fig.suptitle("Scaled Dot-Product Attention Visualization", fontsize=16)
+    
+    # 1. Visualize query and key vectors
+    ax1 = axes[0, 0]
+    ax1.set_title("Query and Key Vectors")
+    
+    # Draw query vectors
+    query_colors = ['blue', 'green', 'red']
+    for i in range(seq_len_q):
+        x = [0, query[0, i, 0].numpy()]
+        y = [0, query[0, i, 1].numpy()]
+        ax1.quiver(0, 0, x[1], y[1], angles='xy', scale_units='xy', scale=1, color=query_colors[i], 
+                   label=f'Query {i+1}', width=0.01)
+    
+    # Draw key vectors
+    key_colors = ['cyan', 'magenta', 'yellow', 'black']
+    for i in range(seq_len_k):
+        x = [0, key[0, i, 0].numpy()]
+        y = [0, key[0, i, 1].numpy()]
+        ax1.quiver(0, 0, x[1], y[1], angles='xy', scale_units='xy', scale=1, color=key_colors[i], 
+                   label=f'Key {i+1}', width=0.01)
+    
+    ax1.set_xlim(-1.5, 1.5)
+    ax1.set_ylim(-1.5, 1.5)
+    ax1.axhline(y=0, color='k', linestyle='-', alpha=0.3)
+    ax1.axvline(x=0, color='k', linestyle='-', alpha=0.3)
+    ax1.grid(True, alpha=0.3)
+    ax1.legend()
+    
+    # 2. Visualize attention weights
+    ax2 = axes[0, 1]
+    ax2.set_title("Attention Weights")
+    
+    im = ax2.imshow(student_weights[0].numpy(), cmap='YlOrRd')
+    fig.colorbar(im, ax=ax2, label='Weight')
+    
+    # Add text annotations
+    for i in range(seq_len_q):
+        for j in range(seq_len_k):
+            text = ax2.text(j, i, f'{student_weights[0, i, j].numpy():.2f}',
+                            ha="center", va="center", color="black")
+    
+    ax2.set_xlabel('Keys')
+    ax2.set_ylabel('Queries')
+    ax2.set_xticks(range(seq_len_k))
+    ax2.set_yticks(range(seq_len_q))
+    ax2.set_xticklabels([f'Key {i+1}' for i in range(seq_len_k)])
+    ax2.set_yticklabels([f'Query {i+1}' for i in range(seq_len_q)])
+    
+    # 3. Visualize value vectors
+    ax3 = axes[1, 0]
+    ax3.set_title("Value Vectors")
+    
+    # Show value vectors as bar charts
+    bar_positions = np.arange(seq_len_k)
+    bar_width = 0.25
+    
+    for i in range(value.shape[-1]):  # For each dimension of the value vectors
+        ax3.bar(bar_positions + i*bar_width, value[0, :, i], 
+                width=bar_width, label=f'Dimension {i+1}')
+    
+    ax3.set_xticks(bar_positions + bar_width)
+    ax3.set_xticklabels([f'Value {i+1}' for i in range(seq_len_k)])
+    ax3.legend()
+    ax3.set_ylabel('Value')
+    
+    # 4. Visualize output vectors (weighted sum of values)
+    ax4 = axes[1, 1]
+    ax4.set_title("Output Vectors (Weighted Values)")
+    
+    # Show output vectors as bar charts
+    output_positions = np.arange(seq_len_q)
+    output_width = 0.25
+    
+    for i in range(student_output.shape[-1]):  # For each dimension of the output vectors
+        ax4.bar(output_positions + i*output_width, student_output[0, :, i], 
+                width=output_width, label=f'Dimension {i+1}')
+    
+    ax4.set_xticks(output_positions + output_width)
+    ax4.set_xticklabels([f'Output {i+1}' for i in range(seq_len_q)])
+    ax4.legend()
+    ax4.set_ylabel('Output Value')
+    
+    # Add explanatory text
+    plt.figtext(0.5, 0.01, 
+                "The scaled dot-product attention mechanism:\n" +
+                "1. Computes dot products between queries and keys\n" +
+                "2. Scales by √d_k where d_k is the key dimension\n" +
+                "3. Applies softmax to get attention weights\n" +
+                "4. Computes weighted sum of values using the attention weights",
+                ha="center", fontsize=12, bbox={"facecolor":"orange", "alpha":0.1, "pad":5})
+    
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.show()
+    
+    return True
 
 def visualize_bahdanau_attention():
     """
@@ -474,18 +756,54 @@ def visualize_self_attention_vs_cross_attention():
     plt.savefig('self_vs_cross_attention.png', dpi=300, bbox_inches='tight')
     plt.show()
 
+# Import student's attention implementation
+def import_student_attention():
+    """
+    Try to import the student's attention implementation.
+    
+    Returns:
+        student_class_or_none: The student's attention class or None if not found
+    """
+    try:
+        # First try to import from attention_layer
+        from attention_layer import ScaledDotProductAttention
+        print("✅ Successfully imported ScaledDotProductAttention from attention_layer.py")
+        return ScaledDotProductAttention
+    except ImportError:
+        # Then try from attention_solution
+        try:
+            from attention_solution import ScaledDotProductAttention
+            print("✅ Successfully imported ScaledDotProductAttention from attention_solution.py")
+            return ScaledDotProductAttention
+        except ImportError:
+            print("❌ Could not find ScaledDotProductAttention implementation.")
+            print("Make sure you've implemented the attention mechanism in attention_layer.py")
+            return None
+
 # Main execution
 if __name__ == "__main__":
-    print("Visualizing Bahdanau attention...")
+    print("=== Attention Mechanism Visualization and Validation ===")
+    print("\nThis tool helps you visualize and validate your attention implementation.")
+    
+    # Try to import the student's implementation
+    StudentAttention = import_student_attention()
+    
+    if StudentAttention:
+        print("\nValidating your attention implementation...")
+        visualize_attention_validation(StudentAttention)
+    
+    print("\nShowing attention visualization examples...")
+    
+    print("\n1. Visualizing Bahdanau attention...")
     visualize_bahdanau_attention()
     
-    print("Visualizing scaled dot-product attention...")
+    print("\n2. Visualizing scaled dot-product attention...")
     visualize_scaled_dot_product_attention()
     
-    print("Visualizing multi-head attention...")
+    print("\n3. Visualizing multi-head attention...")
     visualize_multi_head_attention()
     
-    print("Visualizing self-attention vs cross-attention...")
+    print("\n4. Visualizing self-attention vs cross-attention...")
     visualize_self_attention_vs_cross_attention()
     
-    print("Visualization complete! Check the output images.")
+    print("\nVisualization complete! Check the output images.")
